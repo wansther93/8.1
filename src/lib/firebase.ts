@@ -12,39 +12,30 @@ import {
 } from 'firebase/auth';
 import { 
   getFirestore, 
-  initializeFirestore,
-  setLogLevel,
+  doc,
+  getDocFromServer,
   type Firestore 
 } from 'firebase/firestore';
-import firebaseConfigJson from '../../firebase-applet-config.json';
-
-const firebaseConfig = {
-  apiKey: firebaseConfigJson.apiKey,
-  authDomain: firebaseConfigJson.authDomain,
-  projectId: firebaseConfigJson.projectId,
-  storageBucket: firebaseConfigJson.storageBucket,
-  messagingSenderId: firebaseConfigJson.messagingSenderId,
-  appId: firebaseConfigJson.appId,
-};
+import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Suprime mensagens de diagnóstico interno não-críticas do Firestore
-setLogLevel('error');
+// Inicialização oficial do Cloud Firestore com databaseId do projeto conforme Firebase Skill
+export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
-// Inicialização resiliente com auto-detecção de long-polling (evita timeout de 10s em proxies, iframes e redes móveis)
-try {
-  initializeFirestore(app, {
-    experimentalAutoDetectLongPolling: true,
-  }, firebaseConfigJson.firestoreDatabaseId);
-} catch {
-  // Ignora se já estiver inicializado em hot-reload
+// Validação de conectividade com o Cloud Firestore conforme instrução do Firebase Skill
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.warn("Aviso de conectividade: Firestore operando em modo offline.");
+    }
+  }
 }
-
-// Inicialização oficial do Cloud Firestore conforme especificação do Firebase Skill
-export const db: Firestore = getFirestore(app, firebaseConfigJson.firestoreDatabaseId);
+testConnection();
 
 export const loginWithGoogle = async (): Promise<User | null> => {
   try {

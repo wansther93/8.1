@@ -97,6 +97,7 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
   const [showManualEditor, setShowManualEditor] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [isDisambiguationModalOpen, setIsDisambiguationModalOpen] = useState(false);
 
   // Estados para Filtros de Formato e Seleção da Linha do Tempo
   const [formatFilter, setFormatFilter] = useState<'tv' | 'movie' | 'special'>('tv');
@@ -134,6 +135,24 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
     }
     return true;
   });
+
+  // Lógica do Botão Duplo Inteligente e Independente por Aba (Marcar/Desmarcar Todos)
+  const currentTabItems = displayedFranchiseItems;
+  const currentTabSelectedItems = currentTabItems.filter((it) => includedItemIds.includes(it.id));
+  const isCurrentTabDeselect =
+    (currentTabItems.length === 1 && currentTabSelectedItems.length === 1) ||
+    currentTabSelectedItems.length >= 2;
+
+  const handleToggleCurrentTabSelection = () => {
+    const currentTabIds = new Set(currentTabItems.map((it) => it.id));
+    if (isCurrentTabDeselect) {
+      // Remove da seleção apenas os itens da aba atual, mantendo as outras abas 100% intactas
+      setIncludedItemIds((prev) => prev.filter((id) => !currentTabIds.has(id)));
+    } else {
+      // Adiciona todos os itens da aba atual à seleção, sem alterar as escolhas das outras abas
+      setIncludedItemIds((prev) => Array.from(new Set([...prev, ...currentTabItems.map((it) => it.id)])));
+    }
+  };
 
   // Ações de Inclusão com 1 Toque (Substitui totalmente botões destrutivos de lixeira)
   const handleToggleInclude = (id: string | number) => {
@@ -175,8 +194,10 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
       setCandidateFranchises(cands);
       if (cands.length > 1) {
         setSelectedClusterId(cands[0].clusterId);
+        setIsDisambiguationModalOpen(true);
       } else {
         setSelectedClusterId(null);
+        setIsDisambiguationModalOpen(false);
       }
 
       // Regra de Ouro: NUNCA pré-seleciona nada automaticamente. O usuário escolhe livremente o que deseja incluir.
@@ -219,6 +240,9 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
     } else {
       setSelectedItemId('');
     }
+
+    // Fecha o modal de desambiguação imediatamente ao escolher a obra
+    setIsDisambiguationModalOpen(false);
   };
 
   const handleApply = () => {
@@ -401,62 +425,39 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
             </div>
           )}
 
-          {/* Desambiguação de Franquia / Grade Compacta Responsiva (todas visíveis sem scroll horizontal) */}
-          {candidateFranchises.length > 1 && (
-            <div className="space-y-1.5 pt-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-indigo-300 flex items-center gap-1.5">
-                  <SlidersHorizontal className="w-3 h-3 text-indigo-400 shrink-0" />
-                  <span>Obras Encontradas:</span>
-                </span>
-                <span className="text-[10px] text-zinc-400 font-medium">
-                  {candidateFranchises.length} obras (toque para alternar)
-                </span>
+          {/* Indicador Sutil de Obra Selecionada de Linha Única com Botão para Trocar Obra */}
+          {candidateFranchises.length > 1 && (() => {
+            const selectedCandidate = candidateFranchises.find((c) => c.clusterId === selectedClusterId);
+            return (
+              <div className="flex items-center justify-between gap-2.5 p-2 px-3 rounded-xl bg-zinc-950/80 border border-white/[0.08] text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-zinc-400 text-[11px] font-medium shrink-0">Obra Selecionada:</span>
+                  <span className="font-bold text-white truncate">
+                    {selectedCandidate?.title || rootTitle}
+                  </span>
+                  {selectedCandidate?.year && (
+                    <span className="text-zinc-500 text-[10px] shrink-0">
+                      ({selectedCandidate.year})
+                    </span>
+                  )}
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30 shrink-0 hidden sm:inline-block">
+                    {franchiseItems.length} temporada(s)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDisambiguationModalOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white text-[11px] font-bold border border-indigo-500/30 hover:border-indigo-400 transition-all cursor-pointer shrink-0 active:scale-95 flex items-center gap-1.5"
+                  title="Trocar para outra obra encontrada com nome semelhante"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Trocar Obra</span>
+                </button>
               </div>
+            );
+          })()}
 
-              {/* Grade compacta: 2 colunas no celular, 4 no desktop. Todas visíveis sem scroll! */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                {candidateFranchises.map((cand) => {
-                  const isActive = selectedClusterId === cand.clusterId;
-                  return (
-                    <button
-                      key={`candidate_franchise_${cand.clusterId}`}
-                      type="button"
-                      onClick={() => handleSelectCandidateFranchise(cand)}
-                      className={`p-1.5 rounded-xl text-left transition-all border cursor-pointer flex items-center gap-2 ${
-                        isActive
-                          ? 'bg-indigo-600/90 text-white border-indigo-400 shadow-sm ring-1 ring-indigo-400/40'
-                          : 'bg-zinc-950/80 text-zinc-300 border-white/[0.08] hover:border-white/20 hover:bg-white/[0.04]'
-                      }`}
-                    >
-                      {cand.coverUrl && (
-                        <img
-                          src={cand.coverUrl}
-                          alt={cand.title}
-                          referrerPolicy="no-referrer"
-                          className="w-5 h-7 object-cover rounded shadow-xs shrink-0 bg-zinc-900"
-                        />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <span className="truncate block text-[11px] font-bold leading-tight" title={cand.title}>
-                          {cand.title}
-                        </span>
-                        <div className="flex items-center gap-1 mt-0.5 text-[9px] text-zinc-400">
-                          {cand.year && <span className={isActive ? 'text-indigo-200' : 'text-zinc-500'}>{cand.year} •</span>}
-                          <span className={isActive ? 'text-white font-semibold' : 'text-zinc-400'}>
-                            {cand.itemCount} {cand.itemCount === 1 ? 'item' : 'itens'}
-                          </span>
-                        </div>
-                      </div>
-                      {isActive && <Check className="w-3 h-3 text-white shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Abas de Formato (Séries TV, Filmes, Especiais & OVAs) com Contador Compacto e Desmarcar */}
+          {/* Abas de Formato (Séries TV, Filmes, Especiais & OVAs) com Botão Duplo Inteligente por Aba */}
           <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-white/[0.06]">
             {/* Abas de Formato - Sem a aba 'Todos' */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
@@ -504,20 +505,38 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
               )}
             </div>
 
-            {/* Contador de Itens Selecionados e Botão Desmarcar Todos Compacto */}
+            {/* Contador de Itens Selecionados e Botão Duplo Inteligente e Independente por Aba */}
             <div className="flex items-center gap-2 ml-auto">
               <span className="text-[11px] font-semibold text-zinc-400">
                 <strong className="text-white font-bold">{includedItemIds.length}</strong> selecionados
               </span>
 
-              {includedItemIds.length > 0 && (
+              {currentTabItems.length > 0 && (
                 <button
                   type="button"
-                  onClick={handleDeselectAll}
-                  className="px-2 py-0.5 rounded-md text-[10.5px] font-medium transition-all bg-white/[0.04] hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 border border-white/[0.06] hover:border-rose-500/30 cursor-pointer active:scale-95"
-                  title="Desmarcar todos os itens selecionados"
+                  onClick={handleToggleCurrentTabSelection}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 border ${
+                    isCurrentTabDeselect
+                      ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
+                      : 'bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border-indigo-500/30'
+                  }`}
+                  title={
+                    isCurrentTabDeselect
+                      ? 'Desmarcar todos os itens desta aba'
+                      : 'Selecionar todos os itens desta aba'
+                  }
                 >
-                  Desmarcar Todos
+                  {isCurrentTabDeselect ? (
+                    <>
+                      <Square className="w-3 h-3 text-rose-400" />
+                      <span>Desmarcar todos</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckSquare className="w-3 h-3 text-indigo-400" />
+                      <span>Selecionar todos</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>
@@ -902,6 +921,115 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
               >
                 <Check className="w-4 h-4" />
                 <span>Concluir Edição</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Compacto de Desambiguação de Obras Encontradas */}
+      {isDisambiguationModalOpen && candidateFranchises.length > 1 && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsDisambiguationModalOpen(false)}
+        >
+          <div 
+            className="w-full max-w-lg bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Cabeçalho do Modal */}
+            <div className="p-4 bg-zinc-950 border-b border-white/10 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+                  <SlidersHorizontal className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white leading-tight">Escolha a Obra Desejada</h3>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    Foram encontradas {candidateFranchises.length} obras com títulos semelhantes. Clique na obra correta:
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDisambiguationModalOpen(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Lista de Obras Compacta e Focada */}
+            <div className="p-3 overflow-y-auto space-y-2 max-h-[60vh]">
+              {candidateFranchises.map((cand) => {
+                const isCurrentActive = selectedClusterId === cand.clusterId;
+                return (
+                  <button
+                    key={`disambiguation_modal_cand_${cand.clusterId}`}
+                    type="button"
+                    onClick={() => handleSelectCandidateFranchise(cand)}
+                    className={`w-full p-2.5 rounded-xl text-left transition-all border cursor-pointer flex items-center gap-3 group ${
+                      isCurrentActive
+                        ? 'bg-indigo-600/20 text-white border-indigo-500/50 shadow-sm'
+                        : 'bg-zinc-950/60 text-zinc-300 border-white/[0.06] hover:border-indigo-500/30 hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    {cand.coverUrl ? (
+                      <img
+                        src={cand.coverUrl}
+                        alt={cand.title}
+                        referrerPolicy="no-referrer"
+                        className="w-12 h-16 object-cover rounded-lg shadow-md shrink-0 bg-zinc-950 border border-white/10"
+                      />
+                    ) : (
+                      <div className="w-12 h-16 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0 border border-white/10">
+                        <Tv className="w-5 h-5 text-zinc-500" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-white group-hover:text-indigo-300 transition-colors truncate block">
+                          {cand.title}
+                        </span>
+                        {isCurrentActive && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30 shrink-0">
+                            Selecionada
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400">
+                        {cand.year && <span>Ano {cand.year}</span>}
+                        {cand.year && <span>•</span>}
+                        <span className="text-zinc-300 font-medium">
+                          {cand.itemCount} {cand.itemCount === 1 ? 'temporada/mídia' : 'temporadas/mídias'}
+                        </span>
+                      </div>
+                      {cand.format && (
+                        <div className="mt-1">
+                          <span className="text-[10px] uppercase font-bold text-zinc-500 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">
+                            Formato: {cand.format}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-xl bg-white/[0.04] group-hover:bg-indigo-600 group-hover:text-white text-zinc-400 transition-colors border border-white/10">
+                      <Check className="w-4 h-4" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="p-3 bg-zinc-950 border-t border-white/10 flex items-center justify-between text-xs text-zinc-400">
+              <span>Selecione a obra para carregar suas temporadas oficiais.</span>
+              <button
+                type="button"
+                onClick={() => setIsDisambiguationModalOpen(false)}
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium transition-colors cursor-pointer"
+              >
+                Fechar
               </button>
             </div>
           </div>

@@ -350,6 +350,8 @@ export async function fetchAnimeFranchiseTree(
                   seasonYear
                   startDate {
                     year
+                    month
+                    day
                   }
                   coverImage {
                     large
@@ -447,6 +449,8 @@ export async function fetchAnimeFranchiseTree(
         idsSet.add(malId);
         if (node.id) idsSet.add(node.id);
 
+        const episodesCount = (typeof node.episodes === 'number' && node.episodes > 0) ? node.episodes : null;
+
         if (!nodesMap.has(malId)) {
           nodesMap.set(malId, {
             id: malId,
@@ -455,9 +459,13 @@ export async function fetchAnimeFranchiseTree(
             japaneseTitle: node.title?.native,
             englishTitle: english,
             format: formatUpper,
-            episodes: node.episodes || null,
+            episodes: episodesCount,
             seasonYear: node.seasonYear || node.startDate?.year || null,
-            startDate: node.startDate || null,
+            startDate: node.startDate ? {
+              year: node.startDate.year || null,
+              month: node.startDate.month || null,
+              day: node.startDate.day || null,
+            } : null,
             coverUrl: node.coverImage?.large || node.coverImage?.medium,
             relationType: relationTypeHint || 'main',
           });
@@ -618,10 +626,37 @@ export async function fetchAnimeFranchiseTree(
       const collectedList = Array.from(nodesMap.values());
 
       if (collectedList.length > 0) {
-        // Ordenação cronológica estrita por ano/mês/dia
-        collectedList.sort((a, b) => {
+        // Função canônica para extrair peso/indicador de temporada e parte (ex: Season 2 Part 1)
+        const getCanonicalSeasonWeight = (title: string, englishTitle?: string): number => {
+          const full = `${title || ''} ${englishTitle || ''}`.toLowerCase();
+          const sMatch = full.match(/(?:season|temporada)\s*(\d+)/i) || full.match(/(\d+)(?:st|nd|rd|th)\s*season/i);
+          const pMatch = full.match(/(?:part|parte|cour)\s*(\d+)/i) || full.match(/(\d+)(?:st|nd|rd|th)\s*cour/i);
+          const seasonNum = sMatch ? parseInt(sMatch[1], 10) : 0;
+          const partNum = pMatch ? parseInt(pMatch[1], 10) : 1;
+
+          if (seasonNum > 0) return seasonNum * 10 + partNum;
+          if (full.includes('final season') || full.includes('temporada final')) return 90 + partNum;
+          return 0;
+        };
+
+        // Ordenação canônica estrita: ligações sequenciais, cronologia por ano/mês/dia e número de temporada
+        const sortFranchiseNodesCanonically = (a: any, b: any): number => {
           const yearA = a.startDate?.year || a.seasonYear || 9999;
           const yearB = b.startDate?.year || b.seasonYear || 9999;
+
+          const hintA = getCanonicalSeasonWeight(a.title, a.englishTitle);
+          const hintB = getCanonicalSeasonWeight(b.title, b.englishTitle);
+
+          // Se ambos forem temporadas numeradas explícitas (ex: Season 1 vs Season 2 vs Season 3)
+          if (hintA > 0 && hintB > 0 && hintA !== hintB) {
+            if (Math.abs(yearA - yearB) >= 1) {
+              if ((hintA < hintB && yearA < yearB) || (hintA > hintB && yearA > yearB)) {
+                return yearA - yearB;
+              }
+            }
+            return hintA - hintB;
+          }
+
           if (yearA !== yearB) return yearA - yearB;
 
           const monthA = a.startDate?.month || 1;
@@ -630,8 +665,15 @@ export async function fetchAnimeFranchiseTree(
 
           const dayA = a.startDate?.day || 1;
           const dayB = b.startDate?.day || 1;
-          return dayA - dayB;
-        });
+          if (dayA !== dayB) return dayA - dayB;
+
+          if (hintA !== hintB) return hintA - hintB;
+
+          return 0;
+        };
+
+        // Ordenação canônica e cronológica estrita por ano/mês/dia e temporada
+        collectedList.sort(sortFranchiseNodesCanonically);
 
         // Agrupamento por Franquias Conexas (Connected Components Graph Clustering)
         // Se duas mídias possuem conexões canônicas (sequels, prequels, spin-offs, movies), pertencem à mesma franquia.
@@ -727,19 +769,9 @@ export async function fetchAnimeFranchiseTree(
           return cB.nodes.length - cA.nodes.length;
         });
 
-        // Função de formatação cronológica de itens de um cluster
+        // Função de formatação canônica e cronológica de itens de um cluster
         const formatClusterItems = (nodes: any[], clusterRepTitle: string): FranchiseTreeItem[] => {
-          const sorted = [...nodes].sort((a, b) => {
-            const yearA = a.startDate?.year || a.seasonYear || 9999;
-            const yearB = b.startDate?.year || b.seasonYear || 9999;
-            if (yearA !== yearB) return yearA - yearB;
-            const monthA = a.startDate?.month || 1;
-            const monthB = b.startDate?.month || 1;
-            if (monthA !== monthB) return monthA - monthB;
-            const dayA = a.startDate?.day || 1;
-            const dayB = b.startDate?.day || 1;
-            return dayA - dayB;
-          });
+          const sorted = [...nodes].sort(sortFranchiseNodesCanonically);
 
           return sorted.map((item, idx) => {
             let mappedFormat: FranchiseTreeItem['format'] = 'TV';

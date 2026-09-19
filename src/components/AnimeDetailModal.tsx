@@ -124,7 +124,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
   const [isSavingSeasons, setIsSavingSeasons] = useState(false);
   const [isRefreshingTree, setIsRefreshingTree] = useState(false);
   const [refreshTreeFeedback, setRefreshTreeFeedback] = useState<{ text: string; success: boolean } | null>(null);
-  const [seasonsFilter, setSeasonsFilter] = useState<'all' | 'tv' | 'extras'>('all');
+  const [seasonsFilter, setSeasonsFilter] = useState<'tv' | 'extras'>('tv');
 
   useEffect(() => {
     if (anime) {
@@ -135,6 +135,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
       setShowHistory(false);
       setShowEmbeddedTrailer(false);
       setActiveTab('seasons');
+      setSeasonsFilter('tv');
       setActiveMediaUrl(null);
       setDynamicBanner(anime.bannerUrl || null);
       setBannerGallery(anime.bannerUrl ? [anime.bannerUrl] : []);
@@ -1468,11 +1469,16 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                     (s) => s.type === 'movie' || s.type === 'ova' || s.type === 'ona' || /filme|movie|ova|especial/i.test(s.name)
                   );
 
+                  const effectiveFilter =
+                    seasonsFilter === 'tv' && tvSeasons.length === 0 && extraSeasons.length > 0
+                      ? 'extras'
+                      : seasonsFilter;
+
                   const filteredSeasons =
-                    seasonsFilter === 'tv'
-                      ? tvSeasons
-                      : seasonsFilter === 'extras'
+                    effectiveFilter === 'extras'
                       ? extraSeasons
+                      : tvSeasons.length > 0
+                      ? tvSeasons
                       : allSeasons;
 
                   if (allSeasons.length === 0) {
@@ -1505,27 +1511,15 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
 
                   return (
                     <div className="space-y-3">
-                      {/* Barra de Filtro de Trilhas (TV vs Extras) e Resumo */}
+                      {/* Barra de Filtro de Trilhas (Séries TV vs Filmes & Extras) e Resumo */}
                       <div className="flex items-center justify-between gap-2 flex-wrap pb-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => setSeasonsFilter('all')}
-                            className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                              seasonsFilter === 'all'
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
-                            }`}
-                          >
-                            Todas ({totalSeasonsCount})
-                          </button>
-
                           {tvSeasons.length > 0 && (
                             <button
                               type="button"
                               onClick={() => setSeasonsFilter('tv')}
                               className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                                seasonsFilter === 'tv'
+                                effectiveFilter === 'tv'
                                   ? 'bg-indigo-600 text-white shadow-xs'
                                   : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
                               }`}
@@ -1540,7 +1534,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                               type="button"
                               onClick={() => setSeasonsFilter('extras')}
                               className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                                seasonsFilter === 'extras'
+                                effectiveFilter === 'extras'
                                   ? 'bg-indigo-600 text-white shadow-xs'
                                   : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
                               }`}
