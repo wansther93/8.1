@@ -1000,31 +1000,29 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
           {/* ============================================================
               SEÇÃO 2: ÁRVORE & LINHA DO TEMPO DE TEMPORADAS / ARCOS
              ============================================================ */}
-          {title.trim() && (
-            <div className="pt-6 border-t border-white/[0.06] space-y-4 animate-in fade-in">
-              <FranchiseTreeSelector
-                animeTitle={title.trim()}
-                malId={malId}
-                currentSeasonName={currentSeasonName}
-                currentTotalEpisodes={totalEpisodes ? parseInt(totalEpisodes, 10) : null}
-                existingSeasons={seasons}
-                initialStructureMode={structureMode}
-                initialExcludedItems={excludedFranchiseItems}
-                onExcludedItemsChange={(items) => setExcludedFranchiseItems(items)}
-                onApplyFranchiseTree={handleApplyFranchiseTree}
-                onToggleSeasonWatched={handleToggleSeasonWatched}
-                onUpdateSeasonName={handleUpdateSeasonName}
-                onUpdateSeasonEpisodes={handleUpdateSeasonEpisodes}
-                onRemoveCustomArc={handleRemoveCustomArc}
-                onSelectCurrentSeason={(sName, totalEp, sId) => {
-                  handleCurrentSeasonNameChange(sName);
-                  if (sId) setActiveSeasonId(sId);
-                  if (totalEp) setTotalEpisodes(String(totalEp));
-                }}
-                onTriggerLoadMetadata={(queryTitle) => handleAutoFetchMetadata(queryTitle)}
-              />
-            </div>
-          )}
+          <div className="pt-6 border-t border-white/[0.06] space-y-4 animate-in fade-in">
+            <FranchiseTreeSelector
+              animeTitle={title.trim()}
+              malId={malId}
+              currentSeasonName={currentSeasonName}
+              currentTotalEpisodes={totalEpisodes ? parseInt(totalEpisodes, 10) : null}
+              existingSeasons={seasons}
+              initialStructureMode={structureMode}
+              initialExcludedItems={excludedFranchiseItems}
+              onExcludedItemsChange={(items) => setExcludedFranchiseItems(items)}
+              onApplyFranchiseTree={handleApplyFranchiseTree}
+              onToggleSeasonWatched={handleToggleSeasonWatched}
+              onUpdateSeasonName={handleUpdateSeasonName}
+              onUpdateSeasonEpisodes={handleUpdateSeasonEpisodes}
+              onRemoveCustomArc={handleRemoveCustomArc}
+              onSelectCurrentSeason={(sName, totalEp, sId) => {
+                handleCurrentSeasonNameChange(sName);
+                if (sId) setActiveSeasonId(sId);
+                if (totalEp) setTotalEpisodes(String(totalEp));
+              }}
+              onTriggerLoadMetadata={(queryTitle) => handleAutoFetchMetadata(queryTitle)}
+            />
+          </div>
 
           {/* ============================================================
               SEÇÃO 3: MEU PROGRESSO & STATUS (ESTRUTURA PLANA)
