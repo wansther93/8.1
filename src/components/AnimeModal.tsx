@@ -444,11 +444,30 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
     handleCurrentSeasonNameChange(presetName);
   };
 
-  // Episode quick increment/decrement
+  // Episode quick increment/decrement respeitando o limite oficial da temporada se existir
   const handleIncrementEpisode = (delta: number) => {
     const current = Math.max(0, parseInt(currentEpisode, 10) || 0);
-    const updated = Math.max(0, current + delta);
+    const maxEp = totalEpisodes && parseInt(totalEpisodes, 10) > 0 ? parseInt(totalEpisodes, 10) : null;
+    let updated = Math.max(0, current + delta);
+    if (maxEp !== null && updated > maxEp) {
+      updated = maxEp;
+    }
     setCurrentEpisode(String(updated));
+  };
+
+  const handleCurrentEpisodeChange = (val: string) => {
+    if (val === '') {
+      setCurrentEpisode('');
+      return;
+    }
+    const num = parseInt(val, 10);
+    if (isNaN(num)) return;
+    const maxEp = totalEpisodes && parseInt(totalEpisodes, 10) > 0 ? parseInt(totalEpisodes, 10) : null;
+    if (maxEp !== null && num > maxEp) {
+      setCurrentEpisode(String(maxEp));
+    } else {
+      setCurrentEpisode(String(Math.max(0, num)));
+    }
   };
 
   const handleToggleSeasonWatched = (id: string) => {
@@ -715,7 +734,10 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
                   required
                   placeholder="Ex: One Piece, Mushoku Tensei, Solo Leveling, Naruto..."
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    setFranchiseTitle('');
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -981,7 +1003,7 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
           {title.trim() && (
             <div className="pt-6 border-t border-white/[0.06] space-y-4 animate-in fade-in">
               <FranchiseTreeSelector
-                animeTitle={franchiseTitle || title.trim()}
+                animeTitle={title.trim()}
                 malId={malId}
                 currentSeasonName={currentSeasonName}
                 currentTotalEpisodes={totalEpisodes ? parseInt(totalEpisodes, 10) : null}
@@ -1016,10 +1038,10 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
               <span className="text-[11px] text-zinc-400 font-medium">Sincronizado com sua lista</span>
             </div>
 
-            {/* Status em Pills Táteis Modernas */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-bold text-zinc-300 block">Status:</span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* Status em Pills Táteis Modernas e Compactas */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-bold text-zinc-400 block">Status da Obra:</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {(Object.keys(STATUS_CONFIG) as AnimeStatus[]).map((key) => {
                   const cfg = STATUS_CONFIG[key];
                   const isSelected = status === key;
@@ -1028,10 +1050,10 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
                       key={key}
                       type="button"
                       onClick={() => setStatus(key)}
-                      className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border active:scale-95 ${
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border active:scale-95 ${
                         isSelected
-                          ? 'bg-indigo-600/25 text-white border-indigo-500 shadow-[0_0_16px_rgba(99,102,241,0.25)] font-bold'
-                          : 'bg-zinc-900/50 border-white/[0.06] text-zinc-400 hover:text-white hover:border-white/15 hover:bg-zinc-900/80'
+                          ? 'bg-indigo-600 text-white border-indigo-400 shadow-sm font-bold'
+                          : 'bg-zinc-900/60 border-white/[0.06] text-zinc-400 hover:text-white hover:border-white/15 hover:bg-zinc-800/60'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]' : cfg.dotColor || 'bg-zinc-500'}`} />
@@ -1043,9 +1065,9 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
             </div>
 
             {/* Temporada Atual & Controle Compacto de Episódios */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-              {/* Temporada ou Arco */}
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              {/* Temporada ou Arco Atual */}
+              <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-zinc-300">
                   Temporada / Arco Atual
                 </label>
@@ -1055,20 +1077,20 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
                   placeholder="Ex: Temporada 1, Arco de Shibuya..."
                   value={currentSeasonName}
                   onChange={(e) => handleCurrentSeasonNameChange(e.target.value)}
-                  className="w-full bg-zinc-900/60 border border-white/[0.08] focus:border-indigo-500/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-500 outline-none"
+                  className="w-full bg-zinc-900/60 border border-white/[0.08] focus:border-indigo-500/80 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 outline-none"
                 />
 
-                {/* Sugestões Rápidas */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+                {/* Sugestões Rápidas Compactas */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar">
                   {['Temporada 1', 'Temporada 2', 'Temporada 3', 'Temporada 4', 'Filme'].map((preset) => (
                     <button
                       key={preset}
                       type="button"
                       onClick={() => handleSelectQuickSeasonPreset(preset)}
-                      className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer shrink-0 font-medium ${
+                      className={`text-[9.5px] px-2 py-0.5 rounded-md border transition-all cursor-pointer shrink-0 font-medium ${
                         currentSeasonName === preset
-                          ? 'bg-indigo-500/20 text-indigo-200 border-indigo-500/40 font-bold'
-                          : 'bg-white/[0.04] text-zinc-400 border-white/[0.06] hover:text-white hover:border-white/15'
+                          ? 'bg-indigo-500/25 text-indigo-200 border-indigo-500/50 font-bold'
+                          : 'bg-white/[0.03] text-zinc-400 border-white/[0.06] hover:text-white hover:border-white/15'
                       }`}
                     >
                       {preset}
@@ -1078,18 +1100,18 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
               </div>
 
               {/* Controle Compacto e Ergonômico de Episódios */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-zinc-300">
                   Episódio Atual & Limite
                 </label>
 
-                <div className="flex items-center gap-3 pt-0.5 flex-wrap">
+                <div className="flex items-center gap-2.5 pt-0.5 flex-wrap">
                   {/* Bloco Unificado de Contador [-] [input] [+] */}
-                  <div className="inline-flex items-center bg-zinc-900 border border-white/[0.08] rounded-2xl p-1 shadow-inner shrink-0">
+                  <div className="inline-flex items-center bg-zinc-900 border border-white/[0.08] rounded-xl p-0.5 shadow-inner shrink-0">
                     <button
                       type="button"
                       onClick={() => handleIncrementEpisode(-1)}
-                      className="w-8.5 h-8.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer active:scale-90 transition-all"
+                      className="w-7 h-7 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer active:scale-90 transition-all"
                       title="Diminuir 1 episódio"
                     >
                       <Minus className="w-3.5 h-3.5" />
@@ -1101,31 +1123,30 @@ export const AnimeModal: React.FC<AnimeModalProps> = ({
                       min="0"
                       required
                       value={currentEpisode}
-                      onChange={(e) => setCurrentEpisode(e.target.value)}
-                      className="w-16 sm:w-20 bg-transparent text-center text-sm sm:text-base font-black text-white outline-none"
+                      onChange={(e) => handleCurrentEpisodeChange(e.target.value)}
+                      className="w-14 sm:w-16 bg-transparent text-center text-sm font-black text-white outline-none"
                     />
 
                     <button
                       type="button"
                       onClick={() => handleIncrementEpisode(1)}
-                      className="w-8.5 h-8.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center cursor-pointer active:scale-90 transition-all shadow-md shadow-indigo-600/30"
+                      disabled={Boolean(totalEpisodes && parseInt(totalEpisodes, 10) > 0 && parseInt(currentEpisode, 10) >= parseInt(totalEpisodes, 10))}
+                      className="w-7 h-7 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center cursor-pointer active:scale-90 transition-all shadow-sm shadow-indigo-600/30"
                       title="Avançar 1 episódio"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  {/* Total de Episódios Limpo e Proporcional */}
+                  {/* Total de Episódios Oficial (Preenchido pela API, Não-editável manualmente) */}
                   <div className="flex items-center gap-1.5 text-xs text-zinc-400">
                     <span>de</span>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Total"
-                      value={totalEpisodes}
-                      onChange={(e) => setTotalEpisodes(e.target.value)}
-                      className="w-16 bg-zinc-900/60 border border-white/[0.08] focus:border-indigo-500 rounded-xl px-2.5 py-2 text-xs text-center text-white placeholder:text-zinc-500 outline-none"
-                    />
+                    <span 
+                      className="px-2.5 py-1 bg-zinc-900/80 border border-white/[0.08] rounded-lg text-xs font-bold text-white min-w-[42px] text-center"
+                      title="Total de episódios oficial definido pela API/Temporada"
+                    >
+                      {totalEpisodes && parseInt(totalEpisodes, 10) > 0 ? totalEpisodes : '—'}
+                    </span>
                     <span>eps</span>
                   </div>
                 </div>

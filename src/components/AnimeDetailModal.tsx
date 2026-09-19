@@ -1559,8 +1559,8 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Trilho da Linha do Tempo Vertical */}
-                      <div className="relative pl-6 space-y-3 before:content-[''] before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-indigo-500/50 before:via-white/10 before:to-white/[0.04]">
+                      {/* Trilho da Linha do Tempo Vertical Compacto e Elegante */}
+                      <div className="relative pl-5 space-y-2 before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-px before:bg-gradient-to-b before:from-indigo-500/50 before:via-white/10 before:to-white/[0.04]">
                         {filteredSeasons.map((sec, idx) => {
                           const isActive = anime.currentSeasonName === sec.name;
                           const isMovie = sec.type === 'movie' || /filme|movie/i.test(sec.name);
@@ -1575,18 +1575,18 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                             <div key={`timeline_season_${sec.id || sec.name || idx}_${idx}`} className="relative group">
                               {/* Marcador do Nó da Linha do Tempo */}
                               <div
-                                className={`absolute -left-6 top-3.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-all z-10 ${
+                                className={`absolute -left-5 top-2.5 w-4 h-4 rounded-full flex items-center justify-center text-[8.5px] font-black transition-all z-10 ${
                                   isActive
-                                    ? 'bg-indigo-600 text-white ring-4 ring-indigo-500/30 shadow-lg shadow-indigo-600/50 scale-110'
+                                    ? 'bg-indigo-600 text-white ring-2 ring-indigo-500/30 shadow-md shadow-indigo-600/50'
                                     : sec.isWatched
-                                    ? 'bg-emerald-600 text-white ring-2 ring-emerald-500/30'
+                                    ? 'bg-emerald-600 text-white'
                                     : 'bg-zinc-900 border border-white/20 text-zinc-400'
                                 }`}
                               >
                                 {isActive ? (
-                                  <Play className="w-2.5 h-2.5 fill-white ml-0.2" />
+                                  <Play className="w-2 h-2 fill-white ml-0.2" />
                                 ) : sec.isWatched ? (
-                                  <Check className="w-3 h-3 stroke-[3]" />
+                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
                                 ) : (
                                   <span>{idx + 1}</span>
                                 )}
@@ -1594,13 +1594,13 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
 
                               {/* Cartão da Temporada Conectado */}
                               <div
-                                className={`p-3.5 rounded-2xl border transition-all ${
+                                className={`p-2.5 rounded-xl border transition-all ${
                                   isActive
-                                    ? 'bg-indigo-950/20 border-indigo-500/60 ring-1 ring-indigo-500/40 shadow-xl shadow-indigo-950/40'
-                                    : 'bg-zinc-950/80 border-white/[0.08] hover:border-white/20 hover:bg-zinc-900/40'
+                                    ? 'bg-indigo-950/25 border-indigo-500/40 shadow-lg shadow-indigo-950/30'
+                                    : 'bg-[#0c0c12]/90 border-white/[0.06] hover:border-white/15 hover:bg-zinc-900/40'
                                 }`}
                               >
-                                <div className="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
+                                <div className="flex items-center justify-between gap-2.5 flex-wrap sm:flex-nowrap">
                                   <div className="min-w-0 flex-1">
                                     {isManagingSeasons ? (
                                       <div className="space-y-1.5">
@@ -1631,10 +1631,10 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                                       </div>
                                     ) : (
                                       <>
-                                        <div className="flex items-center gap-2 flex-wrap">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
                                           {/* Badge do Formato */}
                                           <span
-                                            className={`px-2 py-0.5 rounded-md font-bold uppercase tracking-wider text-[9px] border ${
+                                            className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-[8.5px] border ${
                                               isMovie
                                                 ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                                                 : isOva
@@ -1650,34 +1650,32 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                                           <h5 className="text-xs font-bold text-white break-words leading-tight">
                                             {sec.name}
                                           </h5>
+
+                                          <span className="text-[10.5px] text-zinc-500 font-mono">
+                                            {sec.totalEpisodes ? `• ${sec.totalEpisodes} eps` : '• Em exibição'}
+                                          </span>
                                         </div>
 
                                         {sec.canonicalTitle &&
                                           sec.canonicalTitle.toLowerCase().trim() !== sec.name.toLowerCase().trim() && (
                                             <p
-                                              className="text-[10px] text-indigo-300/70 font-mono truncate mt-1"
+                                              className="text-[9.5px] text-indigo-300/70 font-mono truncate mt-0.5"
                                               title={`Título oficial na API: ${sec.canonicalTitle}`}
                                             >
                                               Canônico: {sec.canonicalTitle}
                                             </p>
                                           )}
 
-                                        <div className="flex items-center gap-2 mt-1 text-[11px] text-zinc-400">
-                                          <span>
-                                            {sec.totalEpisodes ? `${sec.totalEpisodes} episódios` : 'Em exibição'}
-                                          </span>
-                                        </div>
-
                                         {/* Barra de Progresso Rápido caso seja a temporada ativa */}
                                         {isActive && (
-                                          <div className="mt-2.5 pt-2 border-t border-indigo-500/20 max-w-md">
-                                            <div className="flex items-center justify-between text-[10px] font-semibold text-indigo-200 mb-1">
-                                              <span>Progresso atual na temporada</span>
+                                          <div className="mt-2 pt-1.5 border-t border-indigo-500/20 max-w-md">
+                                            <div className="flex items-center justify-between text-[9.5px] font-semibold text-indigo-200 mb-0.5">
+                                              <span>Progresso atual</span>
                                               <span>
                                                 {currentEpNum} / {totalEpNum || '?'} eps ({progressPct}%)
                                               </span>
                                             </div>
-                                            <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                            <div className="w-full h-1 rounded-full bg-white/10 overflow-hidden">
                                               <div
                                                 className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full transition-all duration-300"
                                                 style={{ width: `${progressPct}%` }}
@@ -1690,12 +1688,12 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                                   </div>
 
                                   {/* Ações da Linha: Mudar Ativa e Marcar Assistida */}
-                                  <div className="flex items-center gap-2 shrink-0 self-start">
+                                  <div className="flex items-center gap-1.5 shrink-0">
                                     {!isReadOnly && !isManagingSeasons && (
                                       <>
                                         {isActive ? (
-                                          <span className="px-3 py-1 rounded-xl bg-indigo-600 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-indigo-600/40 border border-indigo-400/40 shrink-0">
-                                            <Play className="w-3 h-3 fill-white" />
+                                          <span className="px-2 py-0.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm border border-indigo-400/40 shrink-0">
+                                            <Play className="w-2.5 h-2.5 fill-white" />
                                             <span>Assistindo</span>
                                           </span>
                                         ) : (
@@ -1703,10 +1701,10 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                                             <button
                                               type="button"
                                               onClick={() => onSwitchSeason(anime, sec)}
-                                              className="px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-white/[0.08] hover:border-indigo-500/40 text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                                              className="px-2 py-0.5 rounded-lg bg-white/[0.04] hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-white/[0.08] hover:border-indigo-500/40 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
                                             >
-                                              <Play className="w-3 h-3 text-indigo-400" />
-                                              <span>Mudar para esta</span>
+                                              <Play className="w-2.5 h-2.5 text-indigo-400" />
+                                              <span>Mudar</span>
                                             </button>
                                           )
                                         )}
@@ -1716,7 +1714,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                                             type="button"
                                             onClick={() => onToggleSeasonWatched(anime, sec.id)}
                                             title={sec.isWatched ? 'Já assistida (clique para desmarcar)' : 'Marcar como assistida'}
-                                            className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-xl font-bold transition-all cursor-pointer border shrink-0 ${
+                                            className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer border shrink-0 ${
                                               sec.isWatched
                                                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-xs'
                                                 : 'bg-white/[0.03] text-zinc-400 border-white/[0.08] hover:text-white hover:border-white/20'
@@ -1724,12 +1722,12 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                                           >
                                             {sec.isWatched ? (
                                               <>
-                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                                                 <span>Assistida</span>
                                               </>
                                             ) : (
                                               <>
-                                                <Circle className="w-3.5 h-3.5 opacity-50" />
+                                                <Circle className="w-3 h-3 opacity-50" />
                                                 <span>Pendente</span>
                                               </>
                                             )}
@@ -1748,9 +1746,9 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                                             ? 'Não é possível excluir a única temporada'
                                             : 'Remover esta temporada'
                                         }
-                                        className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                        className="p-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                       >
-                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <Trash2 className="w-3 h-3" />
                                       </button>
                                     )}
                                   </div>

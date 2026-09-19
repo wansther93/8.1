@@ -98,17 +98,9 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
   const [isApplying, setIsApplying] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
-  // Estados para Navegação Horizontal do Carrossel e Filtros de Formato / Lote
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const [formatFilter, setFormatFilter] = useState<'all' | 'tv' | 'movie' | 'special'>('all');
+  // Estados para Filtros de Formato e Seleção da Linha do Tempo
+  const [formatFilter, setFormatFilter] = useState<'tv' | 'movie' | 'special'>('tv');
   const [includedItemIds, setIncludedItemIds] = useState<(string | number)[]>([]);
-
-  const scrollCarousel = (direction: 'left' | 'right') => {
-    if (carouselRef.current) {
-      const offset = direction === 'left' ? -260 : 260;
-      carouselRef.current.scrollBy({ left: offset, behavior: 'smooth' });
-    }
-  };
 
   // Contadores dinâmicos por formato/categoria
   const totalCount = franchiseItems.length;
@@ -125,9 +117,8 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
       /ova|special|especial/i.test(it.englishTitle || '')
   ).length;
 
-  // Itens filtrados para visualização nas abas de formato
+  // Itens filtrados para visualização nas abas de formato (TV, Filmes, Especiais & OVAs)
   const displayedFranchiseItems = franchiseItems.filter((it) => {
-    if (formatFilter === 'all') return true;
     if (formatFilter === 'tv') return !it.format || it.format === 'TV';
     if (formatFilter === 'movie') {
       return it.format === 'Movie' || /filme|movie/i.test(it.title) || /filme|movie/i.test(it.englishTitle || '');
@@ -151,31 +142,6 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
     );
   };
 
-  const handleSelectOnlyTv = () => {
-    const tvIds = franchiseItems
-      .filter((it) => !it.format || it.format === 'TV')
-      .map((it) => it.id);
-    setIncludedItemIds(tvIds);
-  };
-
-  const handleSelectTvAndMovies = () => {
-    const tvAndMovieIds = franchiseItems
-      .filter(
-        (it) =>
-          !it.format ||
-          it.format === 'TV' ||
-          it.format === 'Movie' ||
-          /filme|movie/i.test(it.title) ||
-          /filme|movie/i.test(it.englishTitle || '')
-      )
-      .map((it) => it.id);
-    setIncludedItemIds(tvAndMovieIds);
-  };
-
-  const handleSelectAll = () => {
-    setIncludedItemIds(franchiseItems.map((it) => it.id));
-  };
-
   const handleDeselectAll = () => {
     setIncludedItemIds([]);
   };
@@ -185,6 +151,12 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
     const query = (overrideQuery || customSearchQuery || animeTitle).trim();
     if (!query) return;
     setLoading(true);
+    // Limpa obras e itens anteriores para evitar herdar candidatos antigos
+    setCandidateFranchises([]);
+    setSelectedClusterId(null);
+    setFranchiseItems([]);
+    setIncludedItemIds([]);
+    setCustomSearchQuery('');
     if (resetExclusions) {
       setExcludedItemIds([]);
       if (onExcludedItemsChange) onExcludedItemsChange([]);
@@ -192,8 +164,6 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
     try {
       // Sempre busca a árvore completa da franquia pelo título da obra (query)
       const res = await fetchAnimeFranchiseTree(query, query);
-      const activeExcluded = resetExclusions ? [] : excludedItemIds;
-      const excludedNorm = (activeExcluded || []).map((x) => String(x).toLowerCase().trim());
 
       const rawItems = res.items || [];
       setFranchiseItems(rawItems);
@@ -209,39 +179,15 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
         setSelectedClusterId(null);
       }
 
-      // Define itens selecionados inicialmente:
-      // Se o usuário já tinha exclusões salvas, preserva.
-      // Se não, seleciona TV + Filmes (ou tudo se a obra tiver até 8 itens)
-      let initialIncluded: (number | string)[] = [];
-      if (excludedNorm.length > 0) {
-        initialIncluded = rawItems
-          .filter(
-            (it) =>
-              !excludedNorm.includes(String(it.id).toLowerCase().trim()) &&
-              !(it.title && excludedNorm.includes(it.title.toLowerCase().trim()))
-          )
-          .map((it) => it.id);
-      } else if (rawItems.length <= 8) {
-        initialIncluded = rawItems.map((it) => it.id);
-      } else {
-        const tvAndMovies = rawItems.filter(
-          (it) =>
-            !it.format ||
-            it.format === 'TV' ||
-            it.format === 'Movie' ||
-            /filme|movie/i.test(it.title) ||
-            /filme|movie/i.test(it.englishTitle || '')
-        );
-        initialIncluded = (tvAndMovies.length > 0 ? tvAndMovies : rawItems).map((it) => it.id);
-      }
-      setIncludedItemIds(initialIncluded);
+      // Regra de Ouro: NUNCA pré-seleciona nada automaticamente. O usuário escolhe livremente o que deseja incluir.
+      setIncludedItemIds([]);
 
       if (rawItems.length > 0) {
         const found = rawItems.find((it) => it.title.toLowerCase() === currentSeasonName.toLowerCase());
         if (found) {
           setSelectedItemId(found.id);
         } else {
-          // Prioriza o primeiro item de TV incluído
+          // Prioriza o primeiro item de TV
           const firstTv = rawItems.find((it) => !it.format || it.format === 'TV');
           setSelectedItemId(firstTv ? firstTv.id : rawItems[0].id);
         }
@@ -262,35 +208,10 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
     setSelectedClusterId(cand.clusterId);
     setRootTitle(cand.title);
     setFranchiseIds(cand.franchiseIds);
-
-    const activeExcluded = excludedItemIds || [];
-    const excludedNorm = activeExcluded.map((x) => String(x).toLowerCase().trim());
-
     setFranchiseItems(cand.items);
 
-    let initialIncluded: (number | string)[] = [];
-    if (excludedNorm.length > 0) {
-      initialIncluded = cand.items
-        .filter(
-          (it) =>
-            !excludedNorm.includes(String(it.id).toLowerCase().trim()) &&
-            !(it.title && excludedNorm.includes(it.title.toLowerCase().trim()))
-        )
-        .map((it) => it.id);
-    } else if (cand.items.length <= 8) {
-      initialIncluded = cand.items.map((it) => it.id);
-    } else {
-      const tvAndMovies = cand.items.filter(
-        (it) =>
-          !it.format ||
-          it.format === 'TV' ||
-          it.format === 'Movie' ||
-          /filme|movie/i.test(it.title) ||
-          /filme|movie/i.test(it.englishTitle || '')
-      );
-      initialIncluded = (tvAndMovies.length > 0 ? tvAndMovies : cand.items).map((it) => it.id);
-    }
-    setIncludedItemIds(initialIncluded);
+    // Começa sempre sem nada selecionado para que o usuário escolha os itens
+    setIncludedItemIds([]);
 
     if (cand.items.length > 0) {
       const found = cand.items.find((it) => it.title.toLowerCase() === currentSeasonName.toLowerCase());
@@ -480,45 +401,21 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
             </div>
           )}
 
-          {/* Desambiguação de Franquia / Carrossel Horizontal Responsivo */}
+          {/* Desambiguação de Franquia / Grade Compacta Responsiva (todas visíveis sem scroll horizontal) */}
           {candidateFranchises.length > 1 && (
-            <div className="space-y-2.5 pt-1">
+            <div className="space-y-1.5 pt-1">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span className="text-[11px] font-bold text-indigo-300 flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3 h-3 text-indigo-400 shrink-0" />
                   <span>Obras Encontradas:</span>
                 </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10.5px] text-zinc-400 font-medium">
-                    {candidateFranchises.length} obras disponíveis
-                  </span>
-                  {/* Navegação por setas no PC */}
-                  <div className="hidden sm:flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => scrollCarousel('left')}
-                      className="p-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer"
-                      title="Navegar para a esquerda"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => scrollCarousel('right')}
-                      className="p-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer"
-                      title="Navegar para a direita"
-                    >
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+                <span className="text-[10px] text-zinc-400 font-medium">
+                  {candidateFranchises.length} obras (toque para alternar)
+                </span>
               </div>
 
-              {/* Carrossel horizontal com toque suave no celular e setas no Desktop */}
-              <div
-                ref={carouselRef}
-                className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar overscroll-contain snap-x scroll-smooth"
-              >
+              {/* Grade compacta: 2 colunas no celular, 4 no desktop. Todas visíveis sem scroll! */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {candidateFranchises.map((cand) => {
                   const isActive = selectedClusterId === cand.clusterId;
                   return (
@@ -526,10 +423,10 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
                       key={`candidate_franchise_${cand.clusterId}`}
                       type="button"
                       onClick={() => handleSelectCandidateFranchise(cand)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2.5 border cursor-pointer snap-start ${
+                      className={`p-1.5 rounded-xl text-left transition-all border cursor-pointer flex items-center gap-2 ${
                         isActive
-                          ? 'bg-indigo-600 text-white border-indigo-400 shadow-md ring-1 ring-indigo-400/50'
-                          : 'bg-zinc-950/80 text-zinc-300 border-white/[0.08] hover:border-white/20 hover:bg-white/[0.06]'
+                          ? 'bg-indigo-600/90 text-white border-indigo-400 shadow-sm ring-1 ring-indigo-400/40'
+                          : 'bg-zinc-950/80 text-zinc-300 border-white/[0.08] hover:border-white/20 hover:bg-white/[0.04]'
                       }`}
                     >
                       {cand.coverUrl && (
@@ -540,26 +437,18 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
                           className="w-5 h-7 object-cover rounded shadow-xs shrink-0 bg-zinc-900"
                         />
                       )}
-                      <div className="text-left min-w-0">
-                        <span className="truncate max-w-[150px] sm:max-w-[210px] block font-semibold">
+                      <div className="min-w-0 flex-1">
+                        <span className="truncate block text-[11px] font-bold leading-tight" title={cand.title}>
                           {cand.title}
                         </span>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          {cand.year && (
-                            <span className={`text-[10px] ${isActive ? 'text-indigo-200' : 'text-zinc-500'}`}>
-                              {cand.year}
-                            </span>
-                          )}
-                          <span
-                            className={`text-[9.5px] px-1.5 py-0.2 rounded font-mono ${
-                              isActive ? 'bg-indigo-700 text-white' : 'bg-white/[0.08] text-zinc-400'
-                            }`}
-                          >
+                        <div className="flex items-center gap-1 mt-0.5 text-[9px] text-zinc-400">
+                          {cand.year && <span className={isActive ? 'text-indigo-200' : 'text-zinc-500'}>{cand.year} •</span>}
+                          <span className={isActive ? 'text-white font-semibold' : 'text-zinc-400'}>
                             {cand.itemCount} {cand.itemCount === 1 ? 'item' : 'itens'}
                           </span>
                         </div>
                       </div>
-                      {isActive && <Check className="w-3.5 h-3.5 text-white shrink-0 ml-1" />}
+                      {isActive && <Check className="w-3 h-3 text-white shrink-0" />}
                     </button>
                   );
                 })}
@@ -567,111 +456,71 @@ export const FranchiseTreeSelector: React.FC<FranchiseTreeSelectorProps> = ({
             </div>
           )}
 
-          {/* Barra de Presets Rápidos de 1 Toque */}
-          <div className="p-3 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 space-y-2.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-indigo-200 flex items-center gap-1.5">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Escolha Rápida da Linha do Tempo:</span>
-              </span>
-              <span className="text-[11px] font-semibold text-indigo-300">
-                {includedItemIds.length} de {totalCount} selecionados
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                type="button"
-                onClick={handleSelectOnlyTv}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-white/[0.05] hover:bg-indigo-600/30 text-zinc-200 hover:text-white border border-white/10 hover:border-indigo-500/40 cursor-pointer flex items-center gap-1.5 active:scale-95"
-              >
-                <Tv className="w-3 h-3 text-indigo-400" />
-                <span>Apenas Séries TV ({tvCount})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSelectTvAndMovies}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-white/[0.05] hover:bg-indigo-600/30 text-zinc-200 hover:text-white border border-white/10 hover:border-indigo-500/40 cursor-pointer flex items-center gap-1.5 active:scale-95"
-              >
-                <Film className="w-3 h-3 text-purple-400" />
-                <span>Séries + Filmes ({tvCount + movieCount})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSelectAll}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-white/[0.05] hover:bg-indigo-600/30 text-zinc-200 hover:text-white border border-white/10 hover:border-indigo-500/40 cursor-pointer flex items-center gap-1.5 active:scale-95"
-              >
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span>Toda a Franquia ({totalCount})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDeselectAll}
-                className="px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all bg-black/40 hover:bg-white/[0.08] text-zinc-400 hover:text-zinc-200 border border-white/[0.06] cursor-pointer ml-auto active:scale-95"
-              >
-                Desmarcar Todos
-              </button>
-            </div>
-          </div>
-
-          {/* Abas de Filtro de Visualização por Formato */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-            <button
-              type="button"
-              onClick={() => setFormatFilter('all')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                formatFilter === 'all'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
-              }`}
-            >
-              Todos ({totalCount})
-            </button>
-
-            {tvCount > 0 && (
+          {/* Abas de Formato (Séries TV, Filmes, Especiais & OVAs) com Contador Compacto e Desmarcar */}
+          <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-white/[0.06]">
+            {/* Abas de Formato - Sem a aba 'Todos' */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
               <button
                 type="button"
                 onClick={() => setFormatFilter('tv')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                   formatFilter === 'tv'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
                 }`}
               >
-                Séries TV ({tvCount})
+                <Tv className="w-3 h-3 text-indigo-400" />
+                <span>Séries TV ({tvCount})</span>
               </button>
-            )}
 
-            {movieCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setFormatFilter('movie')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  formatFilter === 'movie'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
-                }`}
-              >
-                Filmes ({movieCount})
-              </button>
-            )}
+              {movieCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFormatFilter('movie')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    formatFilter === 'movie'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
+                  }`}
+                >
+                  <Film className="w-3 h-3 text-purple-400" />
+                  <span>Filmes ({movieCount})</span>
+                </button>
+              )}
 
-            {specialCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setFormatFilter('special')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  formatFilter === 'special'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
-                }`}
-              >
-                Especiais & OVAs ({specialCount})
-              </button>
-            )}
+              {specialCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFormatFilter('special')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    formatFilter === 'special'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]'
+                  }`}
+                >
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span>Especiais & OVAs ({specialCount})</span>
+                </button>
+              )}
+            </div>
+
+            {/* Contador de Itens Selecionados e Botão Desmarcar Todos Compacto */}
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-[11px] font-semibold text-zinc-400">
+                <strong className="text-white font-bold">{includedItemIds.length}</strong> selecionados
+              </span>
+
+              {includedItemIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDeselectAll}
+                  className="px-2 py-0.5 rounded-md text-[10.5px] font-medium transition-all bg-white/[0.04] hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 border border-white/[0.06] hover:border-rose-500/30 cursor-pointer active:scale-95"
+                  title="Desmarcar todos os itens selecionados"
+                >
+                  Desmarcar Todos
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Lista de Itens com Seleção por Checklist */}

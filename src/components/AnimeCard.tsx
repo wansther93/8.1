@@ -39,11 +39,23 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({
     setEpInput(String(anime.currentEpisode));
   }, [anime.currentEpisode]);
 
+  const activeSeason = anime.seasons?.find((s) => s.name === anime.currentSeasonName) || anime.seasons?.[0];
+  const maxEp = activeSeason?.totalEpisodes || anime.totalEpisodes;
+  const seasonsList = anime.seasons && anime.seasons.length > 0
+    ? [...anime.seasons].sort((a, b) => (a.order || 0) - (b.order || 0))
+    : [];
+  const currentIdx = seasonsList.findIndex((s) => s.name === anime.currentSeasonName);
+  const hasNextSeason = currentIdx !== -1 && currentIdx + 1 < seasonsList.length;
+  const isSeasonalFinished = Boolean(maxEp && maxEp > 0 && anime.currentEpisode >= maxEp && !hasNextSeason);
+
   const handleCommitEp = () => {
     setIsEditingEp(false);
-    const val = parseInt(epInput, 10);
-    if (!isNaN(val) && val >= 0 && val !== anime.currentEpisode) {
-      if (onUpdateEpisode) {
+    let val = parseInt(epInput, 10);
+    if (!isNaN(val) && val >= 0) {
+      if (maxEp && maxEp > 0 && !hasNextSeason && val > maxEp) {
+        val = maxEp;
+      }
+      if (val !== anime.currentEpisode && onUpdateEpisode) {
         onUpdateEpisode(anime, val);
       }
     } else {
@@ -51,9 +63,6 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({
     }
   };
   const statusInfo = STATUS_CONFIG[anime.status] || STATUS_CONFIG.watching;
-
-  const activeSeason = anime.seasons?.find((s) => s.name === anime.currentSeasonName) || anime.seasons?.[0];
-  const maxEp = activeSeason?.totalEpisodes || anime.totalEpisodes;
   const airingToday = isAnimeActiveAndAiringToday(anime);
   const progressPct = maxEp && maxEp > 0 ? Math.min(100, Math.round((anime.currentEpisode / maxEp) * 100)) : null;
 
@@ -275,8 +284,9 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({
             e.stopPropagation();
             onIncrement(anime);
           }}
-          title="Avançar 1 episódio"
-          className="w-7 h-7 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-sm shadow-indigo-600/30"
+          disabled={isSeasonalFinished}
+          title={isSeasonalFinished ? 'Limite oficial de episódios da temporada atingido' : 'Avançar 1 episódio'}
+          className="w-7 h-7 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-sm shadow-indigo-600/30"
         >
           <Plus className="w-3.5 h-3.5" />
         </button>

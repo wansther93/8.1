@@ -1007,14 +1007,29 @@ export default function App() {
 
   const handleUpdateEpisode = async (anime: Anime, newEpisode: number) => {
     if (triggerAuthPrompt('Atualizar episódios', 'Necessário criar uma conta com o Google para salvar o progresso de episódios.')) return;
+
+    // Respeita o limite oficial da temporada para animes sazonais sem próxima temporada
+    const seasonsList = anime.seasons && anime.seasons.length > 0
+      ? [...anime.seasons].sort((a, b) => (a.order || 0) - (b.order || 0))
+      : [];
+    const currentIdx = seasonsList.findIndex((s) => s.name === anime.currentSeasonName);
+    const activeSeason = currentIdx !== -1 ? seasonsList[currentIdx] : seasonsList[0];
+    const maxEp = activeSeason?.totalEpisodes || anime.totalEpisodes;
+    const hasNextSeason = currentIdx !== -1 && currentIdx + 1 < seasonsList.length;
+
+    let targetEp = Math.max(0, newEpisode);
+    if (maxEp && maxEp > 0 && !hasNextSeason && targetEp > maxEp) {
+      targetEp = maxEp;
+    }
+
     setAnimes((prev) =>
-      prev.map((a) => (a.id === anime.id ? { ...a, currentEpisode: newEpisode, updatedAt: new Date().toISOString() } : a))
+      prev.map((a) => (a.id === anime.id ? { ...a, currentEpisode: targetEp, updatedAt: new Date().toISOString() } : a))
     );
     if (detailAnime?.id === anime.id) {
-      setDetailAnime((prev) => (prev ? { ...prev, currentEpisode: newEpisode } : null));
+      setDetailAnime((prev) => (prev ? { ...prev, currentEpisode: targetEp } : null));
     }
     try {
-      await setEpisodeDirectly(anime, newEpisode);
+      await setEpisodeDirectly(anime, targetEp);
     } catch (err) {
       console.error(err);
     }
@@ -1097,63 +1112,64 @@ export default function App() {
     const activeSeason = currentIdx !== -1 ? seasonsList[currentIdx] : seasonsList[0];
     const maxEp = activeSeason?.totalEpisodes || anime.totalEpisodes;
 
+    // Localiza a próxima temporada correspondente se houver:
+    const isCurrentTv = !activeSeason?.type || activeSeason.type === 'tv' || activeSeason.type === 'arc';
+    let nextSeason: AnimeSeasonOrArc | null = null;
+
+    if (isCurrentTv && seasonsList.length > 0 && currentIdx !== -1) {
+      nextSeason = seasonsList.slice(currentIdx + 1).find((s) => !s.type || s.type === 'tv' || s.type === 'arc') || null;
+    }
+
+    if (!nextSeason && seasonsList.length > 0 && currentIdx !== -1 && currentIdx + 1 < seasonsList.length) {
+      nextSeason = seasonsList[currentIdx + 1];
+    }
+
+    // Se já alcançou o limite oficial de episódios e NÃO existe próxima temporada, bloqueia incremento (animes sazonais)
+    if (maxEp && maxEp > 0 && currentEp >= maxEp && !nextSeason) {
+      return;
+    }
+
     // Se alcançou o último episódio desta temporada
     const isSeasonCompleted = Boolean(maxEp && nextEp >= maxEp);
 
     // CASO 1: Terminou a temporada atual e EXISTE uma próxima temporada na franquia
-    if (isSeasonCompleted && seasonsList.length > 0 && currentIdx !== -1) {
-      // Localiza a próxima temporada correspondente:
-      // Se a temporada atual é de TV ou arco principal, avança preferencialmente para a próxima temporada de TV
-      // sem pular acidentalmente para um OVA ou filme que esteja intercalado
-      const isCurrentTv = !activeSeason?.type || activeSeason.type === 'tv' || activeSeason.type === 'arc';
-      let nextSeason: AnimeSeasonOrArc | null = null;
+    if (isSeasonCompleted && nextSeason && seasonsList.length > 0 && currentIdx !== -1) {
+      const updatedSeasons = seasonsList.map((s, idx) =>
+        idx === currentIdx ? { ...s, isWatched: true } : s
+      );
 
-      if (isCurrentTv) {
-        nextSeason = seasonsList.slice(currentIdx + 1).find((s) => !s.type || s.type === 'tv' || s.type === 'arc') || null;
+      const updatedAnimeData: Partial<Anime> = {
+        currentSeasonName: nextSeason.name,
+        totalEpisodes: nextSeason.totalEpisodes || null,
+        currentEpisode: 0, // Zera para iniciar a nova temporada
+        seasons: updatedSeasons,
+        status: 'watching', // PERMANECE RIGOROSAMENTE ASSISTINDO!
+        updatedAt: new Date().toISOString(),
+      };
+
+      setAnimes((prev) =>
+        prev.map((a) => (a.id === anime.id ? { ...a, ...updatedAnimeData } : a))
+      );
+      if (detailAnime?.id === anime.id) {
+        setDetailAnime((prev) => (prev ? { ...prev, ...updatedAnimeData } : null));
       }
 
-      // Se não encontrou uma próxima de TV (ou o usuário estava assistindo um filme/OVA específico), avança para a seguinte se houver
-      if (!nextSeason && currentIdx + 1 < seasonsList.length) {
-        nextSeason = seasonsList[currentIdx + 1];
-      }
-
-      if (nextSeason) {
-        const updatedSeasons = seasonsList.map((s, idx) =>
-          idx === currentIdx ? { ...s, isWatched: true } : s
-        );
-
-        const updatedAnimeData: Partial<Anime> = {
+      try {
+        await updateAnime(anime.id, {
           currentSeasonName: nextSeason.name,
           totalEpisodes: nextSeason.totalEpisodes || null,
-          currentEpisode: 0, // Zera para iniciar a nova temporada
+          currentEpisode: 0,
           seasons: updatedSeasons,
-          status: 'watching', // PERMANECE RIGOROSAMENTE ASSISTINDO!
-          updatedAt: new Date().toISOString(),
-        };
-
-        setAnimes((prev) =>
-          prev.map((a) => (a.id === anime.id ? { ...a, ...updatedAnimeData } : a))
-        );
-        if (detailAnime?.id === anime.id) {
-          setDetailAnime((prev) => (prev ? { ...prev, ...updatedAnimeData } : null));
-        }
-
-        try {
-          await updateAnime(anime.id, {
-            currentSeasonName: nextSeason.name,
-            totalEpisodes: nextSeason.totalEpisodes || null,
-            currentEpisode: 0,
-            seasons: updatedSeasons,
-            status: 'watching',
-          });
-        } catch (err) {
-          console.error('Erro ao avançar para próxima temporada automaticamente:', err);
-        }
-        return;
+          status: 'watching',
+        });
+      } catch (err) {
+        console.error('Erro ao avançar para próxima temporada automaticamente:', err);
       }
+      return;
     }
 
     // CASO 2: Última temporada ou anime de temporada única
+    const finalNextEp = maxEp && maxEp > 0 ? Math.min(maxEp, nextEp) : nextEp;
     let updatedStatus: AnimeStatus = anime.status;
     let updatedSeasons = seasonsList;
 
